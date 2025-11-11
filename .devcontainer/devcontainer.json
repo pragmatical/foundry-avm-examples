@@ -3,6 +3,12 @@
   "containerEnv": {
     "AVM_IN_CONTAINER": "true"
   },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind"
+  ],
+  "remoteEnv": {
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+  },
   "features": {
     "ghcr.io/devcontainers-extra/features/zsh-plugins:0": {
         "plugins": "python poetry gitfast git-extras command-not-found colorize colored-man-pages"
@@ -15,10 +21,6 @@
     "seccomp=unconfined",
     "--init",
     "--network=host"
-  ],
-  "mounts": [
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
   ],
   "postStartCommand": "cat /workspaces/foundry-avm-examples/.devcontainer/.bashrc >> ~/.bashrc && source ~/.bashrc",
   "onCreateCommand": "terraform version",
