@@ -81,13 +81,13 @@ variable "ai_projects" {
       display_name               = "Project 1"
       create_project_connections = true
       cosmos_db_connection = {
-        new_resource_map_key = "this"
+        new_resource_map_key = "proj1"
       }
       ai_search_connection = {
-        new_resource_map_key = "this"
+        new_resource_map_key = "proj1"
       }
       storage_account_connection = {
-        new_resource_map_key = "this"
+        new_resource_map_key = "proj1"
       }
     }
   }
