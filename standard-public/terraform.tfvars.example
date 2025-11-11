@@ -1,0 +1,88 @@
+# Azure Subscription Configuration
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Deployment Configuration
+base_name        = "myproject"
+
+# Locaton Configuration
+location = "eastus"
+
+# Monitoring Configuration
+log_analytics_retention_days = 30
+enable_diagnostic_settings   = false
+
+# AI Model Deployments
+ai_model_deployments = {
+  "gpt-4o" = {
+    name = "gpt-4o"
+    model = {
+      format  = "OpenAI"
+      name    = "gpt-4o"
+      version = "2024-08-06"
+    }
+    scale = {
+      type     = "Standard"
+      capacity = 10
+    }
+  }
+  # Uncomment to add more models:
+  # "text-embedding-3-large" = {
+  #   name = "text-embedding-3-large"
+  #   model = {
+  #     format  = "OpenAI"
+  #     name    = "text-embedding-3-large"
+  #     version = "1"
+  #   }
+  #   scale = {
+  #     type     = "Standard"
+  #     capacity = 10
+  #   }
+  # }
+  # "gpt-35-turbo" = {
+  #   name = "gpt-35-turbo"
+  #   model = {
+  #     format  = "OpenAI"
+  #     name    = "gpt-35-turbo"
+  #     version = "0125"
+  #   }
+  #   scale = {
+  #     type     = "Standard"
+  #     capacity = 10
+  #   }
+  # }
+}
+
+# AI Projects
+ai_projects = {
+  project_1 = {
+    name                       = "project-1"
+    description                = "Development project for AI experimentation"
+    display_name               = "Development Project"
+    create_project_connections = true
+    cosmos_db_connection = {
+      new_resource_map_key = "this"
+    }
+    ai_search_connection = {
+      new_resource_map_key = "this"
+    }
+    storage_account_connection = {
+      new_resource_map_key = "this"
+    }
+  }
+  # Uncomment to add more projects:
+  # project_2 = {
+  #   name                       = "project-2"
+  #   description                = "Production project for AI applications"
+  #   display_name               = "Production Project"
+  #   create_project_connections = true
+  #   cosmos_db_connection = {
+  #     new_resource_map_key = "this"
+  #   }
+  #   ai_search_connection = {
+  #     new_resource_map_key = "this"
+  #   }
+  #   storage_account_connection = {
+  #     new_resource_map_key = "this"
+  #   }
+  # }
+}
