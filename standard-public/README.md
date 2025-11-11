@@ -65,43 +65,39 @@ With the included `terraform.tfvars` configuration (2 projects, 2 models):
 
 **Total:** ~11 main Azure resources + role assignments and connections
 
-## Architecture
 
-This example deploys AI Foundry with dedicated BYOR services per project using public access:
+## Architecture Diagram
 
 ```mermaid
 graph TB
     subgraph "Azure Resource Group"
-        subgraph "Core AI Foundry (Shared)"
+        subgraph "Shared Infrastructure"
             AF[AI Foundry<br/>Account]
-            AMD[AI Model<br/>Deployments<br/>GPT-4o, Embeddings]
-            KV[Key Vault<br/>Shared]
-        end
-        
-        subgraph "Project 1 Resources"
-            AFP1[AI Foundry<br/>Project 1]
-            SA1[Storage Account<br/>Project 1]
-            CDB1[Cosmos DB<br/>Project 1]
-            AIS1[AI Search<br/>Project 1]
-        end
-        
-        subgraph "Project 2 Resources"
-            AFP2[AI Foundry<br/>Project 2]
-            SA2[Storage Account<br/>Project 2]
-            CDB2[Cosmos DB<br/>Project 2]
-            AIS2[AI Search<br/>Project 2]
-        end
-        
-        subgraph "Supporting Services"
+            KV[Key Vault<br/>shared]
+            AMD1[AI Model:<br/>gpt-4o]
+            AMD2[AI Model:<br/>text-embedding-3-large]
             LAW[Log Analytics<br/>Workspace]
-            RA[Role<br/>Assignments]
+        end
+        
+        subgraph "Project 1 (proj1)"
+            AFP1[AI Foundry<br/>Project 1]
+            SA1[Storage Account<br/>proj1]
+            CDB1[Cosmos DB<br/>proj1]
+            AIS1[AI Search<br/>proj1]
+        end
+        
+        subgraph "Project 2 (proj2)"
+            AFP2[AI Foundry<br/>Project 2]
+            SA2[Storage Account<br/>proj2]
+            CDB2[Cosmos DB<br/>proj2]
+            AIS2[AI Search<br/>proj2]
         end
     end
     
-    %% Core relationships
     AF --> AFP1
     AF --> AFP2
-    AF --> AMD
+    AF --> AMD1
+    AF --> AMD2
     AF --> KV
     AFP1 --> SA1
     AFP1 --> CDB1
@@ -110,20 +106,9 @@ graph TB
     AFP2 --> CDB2
     AFP2 --> AIS2
     
-    %% Supporting relationships
     LAW -.-> AF
-    RA -.-> AFP1
-    RA -.-> AFP2
-    RA -.-> SA1
-    RA -.-> SA2
-    RA -.-> CDB1
-    RA -.-> CDB2
-    RA -.-> AIS1
-    RA -.-> AIS2
     
-    %% Public access (no private endpoints)
     INTERNET[Public Internet] -.-> AF
-    INTERNET -.-> KV
     INTERNET -.-> SA1
     INTERNET -.-> SA2
     INTERNET -.-> CDB1
@@ -134,288 +119,259 @@ graph TB
     classDef shared fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef proj1 fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef proj2 fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef support fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
     classDef access fill:#ffebee,stroke:#b71c1c,stroke-width:1px,stroke-dasharray: 5 5
     
-    class AF,AMD,KV shared
+    class AF,AMD1,AMD2,KV,LAW shared
     class AFP1,SA1,CDB1,AIS1 proj1
     class AFP2,SA2,CDB2,AIS2 proj2
-    class LAW,RA support
     class INTERNET access
 ```
 
-**Legend:**
-- 🔷 **Shared Resources** (Blue) - AI Foundry Account, AI Models, Key Vault
-- 🟣 **Project 1 Resources** (Purple) - Dedicated BYOR services
-- 🟠 **Project 2 Resources** (Orange) - Dedicated BYOR services
-- 🟢 **Supporting** (Green) - Monitoring and RBAC
-- 🔴 **Public Access** (Red dashed) - Internet-accessible endpoints
+**Key:**
+- 🔷 **Blue** - Shared across all projects
+- 🟣 **Purple** - Project 1 dedicated resources
+- 🟠 **Orange** - Project 2 dedicated resources
+- 🔴 **Red dashed lines** - Public internet access
 
-## Key Features
+## How to Configure This Example
 
-### Dynamic BYOR Resource Generation
-The configuration automatically generates BYOR resource definitions based on your project definitions:
+### Step 1: Set Your Subscription ID
+
+The only required variable is your Azure subscription ID. Edit `terraform.tfvars`:
+
 ```hcl
-# Define projects in terraform.tfvars
-ai_projects = {
-  "project-1" = { ... }
-  "project-2" = { ... }
-}
-
-# BYOR resources are automatically created per project
-# No need to manually define storage_account_definition, cosmosdb_definition, etc.
+subscription_id = "your-subscription-id-here"
 ```
 
-### Flexible Model Deployment
-Add or modify AI models easily:
+### Step 2: Customize the Base Name (Optional)
+
+The `base_name` is used as a prefix for all resource names. Change it to something meaningful for your environment:
+
+```hcl
+base_name = "mycompany"  # Default: "public"
+```
+
+This will create resources like `rg-mycompany-xxxxx`, `st-mycompany-xxxxx`, etc.
+
+### Step 3: Choose Your Azure Region (Optional)
+
+Specify where you want to deploy:
+
+```hcl
+location = "eastus"  # Default: "australiaeast"
+```
+
+### Step 4: Configure Your Projects
+
+This is where the magic happens. Define your projects in the `ai_projects` map:
+
+```hcl
+ai_projects = {
+  "project-1" = {
+    name                       = "project-1"
+    description                = "Development project"
+    display_name               = "Dev Environment"
+    create_project_connections = true
+    
+    # Each connection points to a BYOR resource key
+    # Using the same key for all three means they all use the same BYOR set
+    cosmos_db_connection = {
+      new_resource_map_key = "proj1"  # This is the BYOR resource set identifier
+    }
+    ai_search_connection = {
+      new_resource_map_key = "proj1"  # Same key = same BYOR set
+    }
+    storage_account_connection = {
+      new_resource_map_key = "proj1"  # Same key = same BYOR set
+    }
+  }
+}
+```
+
+**Important:** The `new_resource_map_key` value determines which BYOR resources (Storage/Cosmos/Search) get created:
+- Use **different keys** for different projects to get separate BYOR resources
+- Use the **same key** if you want multiple projects to share BYOR resources (though this is uncommon)
+
+**Naming Rules:**
+- Map keys (like `"project-1"`) can use hyphens but avoid underscores
+- The `name` field will be used for the actual Azure resource name
+- Keep names short and DNS-compatible
+
+### Step 5: Add or Modify AI Models
+
+Configure which OpenAI models to deploy:
+
 ```hcl
 ai_model_deployments = {
-  "gpt-4o" = { ... }
-  "text-embedding-3-large" = { ... }
-  # Add more models as needed
+  "gpt-4o" = {
+    name = "gpt-4o"
+    model = {
+      format  = "OpenAI"
+      name    = "gpt-4o"
+      version = "2024-08-06"
+    }
+    scale = {
+      type     = "Standard"      # or "GlobalStandard"
+      capacity = 10              # TPM in thousands
+    }
+  }
 }
 ```
 
-### Per-Project Isolation
-Each project gets:
-- Its own data stores (Storage, Cosmos DB, AI Search)
-- Dedicated managed identities with scoped RBAC
-- Independent connections to BYOR resources
-- Isolated workspaces for development teams
+Models are deployed at the **AI Foundry account level** and are accessible from all projects.
 
-## Configuration Variables
-
-### Required
-- `subscription_id` - Azure subscription ID
-
-### Key Configuration
-- `base_name` - Prefix for resource names (default: "public")
-- `location` - Azure region (default: "swedencentral")
-- `ai_projects` - Map of AI projects to create
-- `ai_model_deployments` - Map of AI models to deploy
-
-### Example terraform.tfvars
-See the included `terraform.tfvars` for a complete working example with 2 projects and 2 models.
-
-## Usage
-
-1. Copy `terraform.tfvars.example` to `terraform.tfvars`
-2. Update `subscription_id` and other variables
-3. Run `terraform init`
-4. Run `terraform plan` to review changes
-5. Run `terraform apply` to create resources
-
-To add a third project, simply add another entry to `ai_projects` in your tfvars file - the BYOR resources will be created automatically.
-
-## Components:**
-- 🔷 **Core AI Foundry** (Account, Project, Model Deployment)
-- 🔶 **BYOR Services** created by the module (Key Vault, Storage, Cosmos DB, AI Search)
-- 🔸 **Supporting Services** (Log Analytics, Role Assignments)
-- 🔷 **Public Access** - All services accessible from the internet
-
-This configuration provides a complete AI Foundry setup with supporting services while maintaining public accessibility for simplified access patterns.
+### Step 6: Other Configuration Options
 
 ```hcl
-terraform {
-  required_version = ">= 1.9, < 2.0"
+# Log Analytics retention
+log_analytics_retention_days = 30  # Default: 30
 
-  required_providers {
-    azapi = {
-      source  = "Azure/azapi"
-      version = "~> 2.0"
+# Enable diagnostic settings for BYOR resources (sends logs to Log Analytics)
+enable_diagnostic_settings = false  # Default: false, set true to enable logging
+```
+
+## Example: Adding a Third Project
+
+To add another project, just add a new entry to the `ai_projects` map:
+
+```hcl
+ai_projects = {
+  "project-1" = { ... },
+  "project-2" = { ... },
+  "project-3" = {
+    name         = "project-3"
+    description  = "Testing environment"
+    display_name = "Test Environment"
+    create_project_connections = true
+    cosmos_db_connection = {
+      new_resource_map_key = "proj3"  # New BYOR set
     }
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+    ai_search_connection = {
+      new_resource_map_key = "proj3"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.5"
-    }
-  }
-}
-
-provider "azurerm" {
-  storage_use_azuread = true
-  features {
-    resource_group {
-      prevent_deletion_if_contains_resources = false
-    }
-    cognitive_account {
-      purge_soft_delete_on_destroy = true
-    }
-  }
-}
-
-data "azurerm_client_config" "current" {}
-
-locals {
-  base_name = "public"
-}
-
-module "regions" {
-  source  = "Azure/avm-utl-regions/azurerm"
-  version = "0.5.2"
-
-  availability_zones_filter = true
-  geography_filter          = "Australia"
-}
-
-resource "random_shuffle" "locations" {
-  input        = module.regions.valid_region_names
-  result_count = 3
-}
-
-module "naming" {
-  source  = "Azure/naming/azurerm"
-  version = "0.4.2"
-
-  suffix        = [local.base_name]
-  unique-length = 5
-}
-
-resource "azurerm_resource_group" "this" {
-  location = random_shuffle.locations.result[0]
-  name     = module.naming.resource_group.name_unique
-}
-
-resource "azurerm_log_analytics_workspace" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = module.naming.log_analytics_workspace.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  retention_in_days   = 30
-  sku                 = "PerGB2018"
-}
-
-module "ai_foundry" {
-  source = "../../"
-
-  base_name                  = local.base_name
-  location                   = azurerm_resource_group.this.location
-  resource_group_resource_id = azurerm_resource_group.this.id
-  ai_foundry = {
-    create_ai_agent_service = true
-    name                    = module.naming.cognitive_account.name_unique
-  }
-  ai_model_deployments = {
-    "gpt-4o" = {
-      name = "gpt-4.1"
-      model = {
-        format  = "OpenAI"
-        name    = "gpt-4.1"
-        version = "2025-04-14"
-      }
-      scale = {
-        type     = "GlobalStandard"
-        capacity = 1
-      }
+    storage_account_connection = {
+      new_resource_map_key = "proj3"
     }
   }
-  ai_projects = {
-    project_1 = {
-      name                       = "project-1"
-      description                = "Project 1 description"
-      display_name               = "Project 1 Display Name"
-      create_project_connections = true
-      cosmos_db_connection = {
-        new_resource_map_key = "this"
-      }
-      ai_search_connection = {
-        new_resource_map_key = "this"
-      }
-      storage_account_connection = {
-        new_resource_map_key = "this"
-      }
-    }
-  }
-  ai_search_definition = {
-    this = {
-      enable_diagnostic_settings = false
-    }
-  }
-  cosmosdb_definition = {
-    this = {
-      enable_diagnostic_settings = false
-    }
-  }
-  create_byor              = true
-  create_private_endpoints = false # default: false
-  key_vault_definition = {
-    this = {
-      enable_diagnostic_settings = false
-    }
-  }
-  storage_account_definition = {
-    this = {
-      enable_diagnostic_settings = false
-    }
-  }
-
-  depends_on = [azapi_resource_action.purge_ai_foundry]
-}
-
-resource "azapi_resource_action" "purge_ai_foundry" {
-  method      = "DELETE"
-  resource_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.CognitiveServices/locations/${azurerm_resource_group.this.location}/resourceGroups/${azurerm_resource_group.this.name}/deletedAccounts/${module.naming.cognitive_account.name_unique}"
-  type        = "Microsoft.Resources/resourceGroups/deletedAccounts@2021-04-30"
-  when        = "destroy"
 }
 ```
 
-<!-- markdownlint-disable MD033 -->
-## Requirements
+When you run `terraform apply`, it will automatically:
+1. Create a new AI Foundry Project named "project-3"
+2. Create a new Storage Account with key "proj3"
+3. Create a new Cosmos DB with key "proj3"
+4. Create a new AI Search with key "proj3"
+5. Wire up the connections between the project and its BYOR resources
 
-The following requirements are needed by this module:
+No changes needed to `main.tf` - the dynamic locals handle everything!
 
-- <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (>= 1.9, < 2.0)
+## Deployment Steps
 
-- <a name="requirement_azapi"></a> [azapi](#requirement\_azapi) (~> 2.0)
+### Prerequisites
+- Azure CLI installed and authenticated (`az login`)
+- Terraform >= 1.9 installed
+- Appropriate Azure permissions (Contributor or Owner on the subscription)
 
-- <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) (~> 4.0)
+### Deploy
 
-- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.5)
+```bash
+# 1. Initialize Terraform
+terraform init
 
-## Resources
+# 2. Review what will be created
+terraform plan
 
-The following resources are used by this module:
+# 3. Create the resources
+terraform apply
 
-- [azapi_resource_action.purge_ai_foundry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/resources/resource_action) (resource)
-- [azurerm_log_analytics_workspace.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/log_analytics_workspace) (resource)
-- [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) (resource)
-- [random_shuffle.locations](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/shuffle) (resource)
-- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
+# 4. Terraform will show you the plan and ask for confirmation
+# Type 'yes' to proceed
+```
 
-<!-- markdownlint-disable MD013 -->
-## Required Inputs
+### Destroy
 
-No required inputs.
+```bash
+terraform destroy
+```
 
-## Optional Inputs
+**Note:** The configuration includes an `azapi_resource_action` that purges soft-deleted AI Foundry accounts during destroy, ensuring you can redeploy with the same names.
 
-No optional inputs.
+## Understanding the Resource Keys
 
-## Outputs
+The configuration uses **resource map keys** to link projects to their BYOR resources. Here's how it works:
 
-No outputs.
+1. **You define projects** with `new_resource_map_key` values:
+   ```hcl
+   storage_account_connection = {
+     new_resource_map_key = "proj1"
+   }
+   ```
 
-## Modules
+2. **Terraform extracts unique keys** from all projects (in this case: `["proj1", "proj2"]`)
 
-The following Modules are called:
+3. **Terraform creates BYOR definitions** for each key:
+   ```hcl
+   storage_account_definitions = {
+     "proj1" = { ... }
+     "proj2" = { ... }
+   }
+   ```
 
-### <a name="module_ai_foundry"></a> [ai\_foundry](#module\_ai\_foundry)
+4. **The AI Foundry module** matches the `new_resource_map_key` to create the right connections
 
-Source: ../../
+This pattern ensures:
+- ✅ No duplicate BYOR resources (even if multiple projects use the same key)
+- ✅ Automatic scaling (add projects without touching resource definitions)
+- ✅ Clear isolation (different keys = different resources)
 
-Version:
+## Key Vault Sharing Pattern
 
-### <a name="module_naming"></a> [naming](#module\_naming)
+Notice that Key Vault is handled differently:
 
-Source: Azure/naming/azurerm
+```hcl
+key_vault_definitions = {
+  "shared" = {
+    enable_diagnostic_settings = var.enable_diagnostic_settings
+  }
+}
+```
 
-Version: 0.4.2
+Key Vault is always created with the key `"shared"` because:
+- AI Foundry uses Key Vault at the **account level**, not project level
+- Projects don't need individual Key Vaults
+- This saves costs and reduces complexity
 
-### <a name="module_regions"></a> [regions](#module\_regions)
+## When to Use This Example
 
-Source: Azure/avm-utl-regions/azurerm
+**Use this pattern when:**
+- ✅ You need complete resource isolation between projects
+- ✅ Different teams/applications should have separate data stores
+- ✅ You want to track costs per project/environment
+- ✅ Compliance requires separate Cosmos DB/Storage per environment
 
-Version: 0.5.2
+**Don't use this pattern when:**
+- ❌ You want projects to share the same Storage/Cosmos/Search (use shared BYOR keys instead)
+- ❌ You need private networking (see the `private` example instead)
+- ❌ You only need a single project (simpler configurations are available)
+
+## Troubleshooting
+
+### "Connection name already exists"
+This happens when multiple projects try to create connections with the same name. Make sure each project uses a **unique** `new_resource_map_key` value.
+
+### "Invalid resource name"
+Azure resource names have restrictions (no underscores, length limits, etc.). Use hyphens instead of underscores in your `new_resource_map_key` values.
+
+### "Insufficient permissions"
+You need Contributor or Owner role on the subscription to create resources and assign RBAC roles.
+
+## What Happens Next
+
+After deployment:
+1. Go to the Azure Portal → AI Foundry
+2. You'll see your AI Foundry account with two projects
+3. Each project has its own connections to Storage, Cosmos DB, and AI Search
+4. Both AI models (gpt-4o, text-embedding) are available in all projects
+5. You can start building AI applications in AI Foundry Studio
+
+The projects are completely isolated - data in Project 1's storage won't appear in Project 2, and vice versa.
