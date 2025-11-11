@@ -60,13 +60,13 @@ ai_projects = {
     display_name               = "Development Project"
     create_project_connections = true
     cosmos_db_connection = {
-      new_resource_map_key = "this"
+      new_resource_map_key = "proj1"
     }
     ai_search_connection = {
-      new_resource_map_key = "this"
+      new_resource_map_key = "proj1"
     }
     storage_account_connection = {
-      new_resource_map_key = "this"
+      new_resource_map_key = "proj1"
     }
   }
   # Uncomment to add more projects:
@@ -76,13 +76,13 @@ ai_projects = {
   #   display_name               = "Production Project"
   #   create_project_connections = true
   #   cosmos_db_connection = {
-  #     new_resource_map_key = "this"
+  #     new_resource_map_key = "proj2"
   #   }
   #   ai_search_connection = {
-  #     new_resource_map_key = "this"
+  #     new_resource_map_key = "proj2"
   #   }
   #   storage_account_connection = {
-  #     new_resource_map_key = "this"
+  #     new_resource_map_key = "proj2"
   #   }
   # }
 }
