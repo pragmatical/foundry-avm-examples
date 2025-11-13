@@ -17,13 +17,23 @@ Azure AI Foundry is Microsoft's comprehensive platform for building and deployin
 
 ### [`standard-public`](./standard-public/)
 
-Demonstrates a multi-project AI Foundry deployment with:
+Demonstrates a multi-project AI Foundry deployment with **dynamically created BYOR resources**:
 - Multiple AI projects with dedicated Bring-Your-Own-Resource (BYOR) resources
 - Shared Azure Key Vault for secure credential management
 - Dynamic resource generation based on project definitions
 - Azure OpenAI model deployments (GPT-4o, text-embedding-3-large)
 
-This example shows how to scale from a single project to multiple projects while maintaining resource isolation where needed and sharing resources where appropriate.
+This example shows how to scale from a single project to multiple projects while maintaining resource isolation where needed and sharing resources where appropriate. **Best for**: Starting from scratch or when you want Terraform to manage the complete infrastructure lifecycle.
+
+### [`standard-public-byor`](./standard-public-byor/)
+
+Demonstrates a multi-project AI Foundry deployment using **your existing BYOR resources**:
+- Connects AI projects to pre-existing Storage Accounts, Cosmos DB, AI Search, and Key Vault
+- No new BYOR resources created - only AI Foundry infrastructure
+- Multiple projects can share the same existing resources
+- Azure OpenAI model deployments
+
+This example is ideal when you already have Storage, Cosmos DB, AI Search, and Key Vault resources deployed and want to connect AI Foundry projects to them. **Best for**: Connecting to centrally-managed resources or when BYOR lifecycle is managed separately.
 
 ## Prerequisites
 
